@@ -1,0 +1,41 @@
+# Questline — local stack: Postgres + backend.
+# The backend reaches the AI provider in the cloud via GEMINI_API_KEY (no local model).
+# Usage: copy .env.example to .env, fill values, then `docker compose up --build`.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-questline}
+      POSTGRES_USER: ${POSTGRES_USER:-questline}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-questline}
+    ports:
+      - "5432:5432"
+    volumes:
+      - questline-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-questline} -d ${POSTGRES_DB:-questline}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-questline}
+      DB_USER: ${POSTGRES_USER:-questline}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-questline}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-secret-change-me-32bytes-minimum}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+    ports:
+      - "8080:8080"
+
+volumes:
+  questline-db:
