@@ -1,0 +1,83 @@
+spring:
+  application:
+    name: questline
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/questline}
+    username: ${DB_USER:questline}
+    password: ${DB_PASSWORD:questline}
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Schema is owned by Flyway; Hibernate only validates the entity <-> table mapping.
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            # Real values come from env (see .env.example). Dummy defaults keep the
+            # ClientRegistrationRepository bean present so the context loads without creds.
+            client-id: ${GOOGLE_CLIENT_ID:dummy-client-id}
+            client-secret: ${GOOGLE_CLIENT_SECRET:dummy-client-secret}
+            scope:
+              - openid
+              - email
+              - profile
+
+  ai:
+    # Google AI Studio (Gemini Developer API) — NOT Vertex AI. Free-tier key from env.
+    model:
+      chat: google-genai
+    google:
+      genai:
+        api-key: ${GEMINI_API_KEY:}
+        chat:
+          options:
+            model: ${GEMINI_MODEL:gemini-2.5-flash}
+
+# JobRunr — DB-backed async jobs. Storage provider auto-selected from the Spring DataSource
+# (Postgres). No jobs are defined yet in Phase 0.
+org:
+  jobrunr:
+    database:
+      skip-create: false
+    background-job-server:
+      enabled: ${JOBRUNR_BACKGROUND_SERVER:true}
+    dashboard:
+      enabled: false
+
+# Application-specific settings.
+app:
+  # Self-issued JWT (HS256). Secret MUST be >= 32 bytes; real value from env in any
+  # non-local environment. The default below is a clearly-marked dev placeholder, not a secret.
+  jwt:
+    secret: ${JWT_SECRET:dev-only-insecure-secret-change-me-32bytes-minimum}
+    issuer: questline
+    ttl: PT24H
+  # Where to redirect the browser after a successful OAuth2 login (SPA callback).
+  frontend-url: ${FRONTEND_URL:http://localhost:5173}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+logging:
+  level:
+    org.questline: INFO
