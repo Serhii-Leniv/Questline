@@ -60,6 +60,9 @@ dependencies {
 
     // AI — Spring AI Google GenAI (Google AI Studio / Gemini Developer API, NOT Vertex AI)
     implementation("org.springframework.ai:spring-ai-starter-model-google-genai")
+    // AI — OpenAI-compatible path (selected via AI_PROVIDER=openai): any provider or local model
+    // that speaks the OpenAI API — Groq, OpenRouter, Ollama, LM Studio, vLLM, or a custom endpoint.
+    implementation("org.springframework.ai:spring-ai-starter-model-openai")
 
     // Async background jobs (DB-backed)
     implementation("org.jobrunr:jobrunr-spring-boot-4-starter:$jobrunrVersion")

@@ -17,21 +17,29 @@ public class AiStartupCheck implements ApplicationRunner {
     private static final Logger log = LoggerFactory.getLogger(AiStartupCheck.class);
 
     private final LlmClient llmClient;
-    private final String model;
+    private final String provider;
+    private final String geminiModel;
+    private final String openaiModel;
 
     public AiStartupCheck(LlmClient llmClient,
-                          @Value("${spring.ai.google.genai.chat.options.model:unset}") String model) {
+                          @Value("${spring.ai.model.chat:unset}") String provider,
+                          @Value("${spring.ai.google.genai.chat.options.model:unset}") String geminiModel,
+                          @Value("${spring.ai.openai.chat.options.model:unset}") String openaiModel) {
         this.llmClient = llmClient;
-        this.model = model;
+        this.provider = provider;
+        this.geminiModel = geminiModel;
+        this.openaiModel = openaiModel;
     }
 
     @Override
     public void run(ApplicationArguments args) {
+        String model = "openai".equals(provider) ? openaiModel : geminiModel;
         if (llmClient.isConfigured()) {
-            log.info("AI provider configured (model={}). No AI features active in Phase 0.", model);
+            log.info("AI provider configured: {} (model={}).", provider, model);
         } else {
-            log.warn("AI provider NOT configured (set GEMINI_API_KEY to enable). "
-                    + "This is expected in Phase 0 / tests.");
+            log.warn("AI provider NOT configured (provider={}). Set the provider's API key to enable "
+                    + "(GEMINI_API_KEY for google-genai, OPENAI_API_KEY for openai). Expected in tests.",
+                    provider);
         }
     }
 }

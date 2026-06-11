@@ -28,8 +28,12 @@ services:
       DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-questline}
       DB_USER: ${POSTGRES_USER:-questline}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-questline}
+      AI_PROVIDER: ${AI_PROVIDER:-google-genai}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-not-set}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-secret-change-me-32bytes-minimum}

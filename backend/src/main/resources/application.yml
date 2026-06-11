@@ -36,15 +36,28 @@ spring:
               - profile
 
   ai:
-    # Google AI Studio (Gemini Developer API) — NOT Vertex AI. Free-tier key from env.
+    # Provider selector. Default = Google Gemini (google-genai). Set AI_PROVIDER=openai to use ANY
+    # OpenAI-compatible endpoint instead — a cloud provider (Groq, OpenRouter) or a LOCAL model
+    # (Ollama, LM Studio, vLLM) — without touching code; the ai/ LlmClient seam stays the same.
     model:
-      chat: google-genai
+      chat: ${AI_PROVIDER:google-genai}
+      embedding: none
+    # Default provider: Google AI Studio (Gemini Developer API) — NOT Vertex AI. Free-tier key.
     google:
       genai:
         api-key: ${GEMINI_API_KEY:}
         chat:
           options:
             model: ${GEMINI_MODEL:gemini-2.5-flash}
+    # OpenAI-compatible provider (used when AI_PROVIDER=openai). base-url is the host root; Spring AI
+    # appends /v1/.... Ollama: http://localhost:11434 · Groq: https://api.groq.com/openai · LM Studio:
+    # http://localhost:1234. For local servers any non-empty api-key works.
+    openai:
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com}
+      api-key: ${OPENAI_API_KEY:not-set}
+      chat:
+        options:
+          model: ${OPENAI_MODEL:gpt-4o-mini}
 
 # JobRunr — DB-backed async jobs. Storage provider auto-selected from the Spring DataSource
 # (Postgres). No jobs are defined yet in Phase 0.
