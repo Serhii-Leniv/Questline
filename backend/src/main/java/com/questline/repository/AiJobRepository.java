@@ -2,6 +2,7 @@ package com.questline.repository;
 
 import com.questline.domain.AiJob;
 import com.questline.domain.AiJobStatus;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -9,6 +10,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface AiJobRepository extends JpaRepository<AiJob, UUID> {
 
     Optional<AiJob> findByIdAndUser_Id(UUID id, UUID userId);
+
+    long countByUser_IdAndCreatedAtAfter(UUID userId, Instant since);
 
     /** The most recently finished job of a given status for a goal — used when accepting a plan. */
     Optional<AiJob> findFirstByGoal_IdAndUser_IdAndStatusOrderByFinishedAtDesc(

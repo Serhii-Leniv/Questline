@@ -3,6 +3,7 @@ package com.questline.web;
 import com.questline.domain.ResourceLink;
 import com.questline.domain.Task;
 import com.questline.domain.TaskStatus;
+import com.questline.domain.Topic;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -22,6 +23,7 @@ public record TaskResponse(
         Instant completedAt,
         List<ResourceLink> resources,
         String notes,
+        List<String> topics,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -41,6 +43,7 @@ public record TaskResponse(
                 task.getCompletedAt(),
                 task.getResources(),
                 task.getNotes(),
+                task.getTopics().stream().map(Topic::getName).toList(),
                 task.getCreatedAt(),
                 task.getUpdatedAt());
     }

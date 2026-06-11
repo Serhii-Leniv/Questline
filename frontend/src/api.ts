@@ -1,4 +1,5 @@
 import type {
+  Achievement,
   AiJob,
   Goal,
   GoalTree,
@@ -6,6 +7,7 @@ import type {
   Overview,
   PlanJob,
   Task,
+  TopicProgress,
 } from "./types";
 
 const TOKEN_KEY = "questline_token";
@@ -73,6 +75,8 @@ export const api = {
     request<Me>("PATCH", "/me/settings", body),
 
   overview: () => request<Overview>("GET", "/stats/overview"),
+  achievements: () => request<Achievement[]>("GET", "/stats/achievements"),
+  topics: () => request<TopicProgress[]>("GET", "/stats/topics"),
 
   listGoals: (status?: string) =>
     request<Goal[]>("GET", `/goals${status ? `?status=${status}` : ""}`),
@@ -82,6 +86,8 @@ export const api = {
   archiveGoal: (id: string) => request<Goal>("POST", `/goals/${id}/archive`),
 
   today: () => request<Task[]>("GET", "/tasks/today"),
+  week: (start?: string) => request<Task[]>("GET", `/tasks/week${start ? `?start=${start}` : ""}`),
+  planDay: () => request<Task[]>("POST", "/tasks/plan-day"),
   createTask: (body: { goalId: string; milestoneId?: string; title: string; estimateMinutes?: number; scheduledFor?: string }) =>
     request<Task>("POST", "/tasks", body),
   setTaskStatus: (id: string, status: string) =>
@@ -91,6 +97,12 @@ export const api = {
 
   startPlan: (body: { context: string; target: string; targetDate?: string; weeklyCapacityMinutes?: number }) =>
     request<PlanJob>("POST", "/ai/plans", body),
+  parseRoadmap: (text: string) => request<PlanJob>("POST", "/ai/roadmaps/parse", { text }),
+  decomposeTask: (taskId: string) => request<PlanJob>("POST", `/ai/tasks/${taskId}/decompose`),
+  refinePlan: (goalId: string, message: string) =>
+    request<PlanJob>("POST", `/ai/plans/${goalId}/refine`, { message }),
   getJob: (jobId: string) => request<AiJob>("GET", `/ai/jobs/${jobId}`),
   acceptPlan: (goalId: string) => request<GoalTree>("POST", `/ai/plans/${goalId}/accept`),
+  replanGoal: (goalId: string) => request<PlanJob>("POST", `/ai/goals/${goalId}/replan`),
+  acceptReplan: (goalId: string) => request<GoalTree>("POST", `/ai/goals/${goalId}/replan/accept`),
 };

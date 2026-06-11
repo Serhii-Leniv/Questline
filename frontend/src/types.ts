@@ -21,12 +21,29 @@ export interface Overview {
   level: number;
   currentStreak: number;
   longestStreak: number;
+  freezesAvailable: number;
 }
 
 export interface Streak {
   current: number;
   longest: number;
   lastActiveDate: string | null;
+  freezesAvailable: number;
+}
+
+export interface Achievement {
+  code: string;
+  title: string;
+  description: string | null;
+  icon: string | null;
+  unlockedAt: string;
+}
+
+export interface TopicProgress {
+  name: string;
+  slug: string;
+  total: number;
+  done: number;
 }
 
 export interface Goal {
@@ -51,6 +68,8 @@ export interface TaskNode {
   orderIndex: number;
   status: TaskStatus;
   scheduledFor: string | null;
+  topics: string[];
+  subtasks: TaskNode[];
 }
 
 export interface MilestoneNode {
@@ -86,6 +105,7 @@ export interface Task {
   status: TaskStatus;
   scheduledFor: string | null;
   completedAt: string | null;
+  topics: string[];
 }
 
 export interface PlanJob {

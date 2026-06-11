@@ -6,6 +6,7 @@ import com.questline.ai.PlanRequest;
 import com.questline.domain.AiJob;
 import com.questline.domain.AiJobStatus;
 import com.questline.repository.AiJobRepository;
+import com.questline.service.DecomposeService;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Map;
@@ -29,36 +30,54 @@ public class PlanJobService {
 
     private final AiJobRepository aiJobRepository;
     private final LlmClient llmClient;
+    private final DecomposeService decomposeService;
     private final ObjectMapper objectMapper;
     private final TransactionTemplate tx;
     private final Clock clock;
 
     public PlanJobService(AiJobRepository aiJobRepository, LlmClient llmClient,
-                          ObjectMapper objectMapper, PlatformTransactionManager txManager, Clock clock) {
+                          DecomposeService decomposeService, ObjectMapper objectMapper,
+                          PlatformTransactionManager txManager, Clock clock) {
         this.aiJobRepository = aiJobRepository;
         this.llmClient = llmClient;
+        this.decomposeService = decomposeService;
         this.objectMapper = objectMapper;
         this.tx = new TransactionTemplate(txManager);
         this.clock = clock;
     }
 
     /** Entry point enqueued by JobRunr. Idempotent: a job already SUCCEEDED is skipped. */
-    public void generate(java.util.UUID jobId) {
-        Map<String, Object> input = tx.execute(status -> startRun(jobId));
-        if (input == null) {
+    public void run(java.util.UUID jobId) {
+        Started started = tx.execute(status -> startRun(jobId));
+        if (started == null) {
             return; // already succeeded, or nothing to do
         }
         try {
-            PlanRequest request = objectMapper.convertValue(input, PlanRequest.class);
-            GeneratedPlan plan = llmClient.generatePlan(request);
-            tx.executeWithoutResult(status -> markSucceeded(jobId, plan));
+            switch (started.type()) {
+                case GENERATE_PLAN -> {
+                    GeneratedPlan plan = llmClient.generatePlan(
+                            objectMapper.convertValue(started.input(), PlanRequest.class));
+                    tx.executeWithoutResult(status -> markSucceeded(jobId, plan));
+                }
+                case PARSE_ROADMAP -> {
+                    GeneratedPlan plan = llmClient.parseRoadmap((String) started.input().get("text"));
+                    tx.executeWithoutResult(status -> markSucceeded(jobId, plan));
+                }
+                case DECOMPOSE_TASK -> {
+                    var subtasks = llmClient.decomposeTask((String) started.input().get("context"));
+                    // DecomposeService persists the subtasks and marks the job SUCCEEDED itself.
+                    decomposeService.completeDecompose(jobId, subtasks);
+                }
+                default -> throw new IllegalStateException("Unsupported job type: " + started.type());
+            }
         } catch (RuntimeException e) {
-            log.warn("Plan job {} failed: {}", jobId, e.toString());
+            log.warn("AI job {} failed: {}", jobId, e.toString());
             tx.executeWithoutResult(status -> markFailed(jobId, e));
         }
     }
 
-    private Map<String, Object> startRun(java.util.UUID jobId) {
+    /** Marks the job RUNNING and returns its type+input, or null if it should be skipped. */
+    private Started startRun(java.util.UUID jobId) {
         AiJob job = aiJobRepository.findById(jobId).orElseThrow();
         if (job.getStatus() == AiJobStatus.SUCCEEDED) {
             return null;
@@ -66,7 +85,10 @@ public class PlanJobService {
         job.setStatus(AiJobStatus.RUNNING);
         job.setAttempts(job.getAttempts() + 1);
         job.setError(null);
-        return job.getInput();
+        return new Started(job.getType(), job.getInput());
+    }
+
+    private record Started(com.questline.domain.AiJobType type, Map<String, Object> input) {
     }
 
     private void markSucceeded(java.util.UUID jobId, GeneratedPlan plan) {

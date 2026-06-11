@@ -38,6 +38,9 @@ class GamificationServiceTest {
     @Mock
     StreakRepository streakRepository;
 
+    @Mock
+    AchievementService achievementService;
+
     private User user;
 
     @BeforeEach
@@ -135,6 +138,77 @@ class GamificationServiceTest {
     }
 
     @Test
+    void oneMissedDayWithAFreeze_keepsStreakAndSpendsFreeze() {
+        GamificationService service = serviceAt("2026-06-11T08:00:00Z");
+        // Last active 2026-06-09 → 2026-06-10 was missed; one freeze covers it.
+        Streak existingStreak = streak(5, 5, LocalDate.of(2026, 6, 9), 1);
+        when(activityDayRepository.findByUser_IdAndDate(USER_ID, LocalDate.of(2026, 6, 11)))
+                .thenReturn(Optional.empty());
+        when(streakRepository.findById(USER_ID)).thenReturn(Optional.of(existingStreak));
+
+        service.onTaskCompleted(taskWithEstimate(null));
+
+        assertThat(existingStreak.getCurrent()).isEqualTo(6);
+        assertThat(existingStreak.getFreezesAvailable()).isEqualTo(0);
+    }
+
+    @Test
+    void missedDayWithoutAFreeze_resetsStreak() {
+        GamificationService service = serviceAt("2026-06-11T08:00:00Z");
+        Streak existingStreak = streak(5, 5, LocalDate.of(2026, 6, 9), 0);
+        when(activityDayRepository.findByUser_IdAndDate(USER_ID, LocalDate.of(2026, 6, 11)))
+                .thenReturn(Optional.empty());
+        when(streakRepository.findById(USER_ID)).thenReturn(Optional.of(existingStreak));
+
+        service.onTaskCompleted(taskWithEstimate(null));
+
+        assertThat(existingStreak.getCurrent()).isEqualTo(1);
+    }
+
+    @Test
+    void twoMissedDaysWithOnlyOneFreeze_resetsAndKeepsTheFreeze() {
+        GamificationService service = serviceAt("2026-06-11T08:00:00Z");
+        // Last active 2026-06-08 → two missed days (09, 10); one freeze is not enough.
+        Streak existingStreak = streak(5, 5, LocalDate.of(2026, 6, 8), 1);
+        when(activityDayRepository.findByUser_IdAndDate(USER_ID, LocalDate.of(2026, 6, 11)))
+                .thenReturn(Optional.empty());
+        when(streakRepository.findById(USER_ID)).thenReturn(Optional.of(existingStreak));
+
+        service.onTaskCompleted(taskWithEstimate(null));
+
+        assertThat(existingStreak.getCurrent()).isEqualTo(1);
+        assertThat(existingStreak.getFreezesAvailable()).isEqualTo(1);
+    }
+
+    @Test
+    void reachingSevenDays_grantsAFreeze() {
+        GamificationService service = serviceAt("2026-06-11T08:00:00Z");
+        Streak existingStreak = streak(6, 6, LocalDate.of(2026, 6, 10), 0); // becomes 7 today
+        when(activityDayRepository.findByUser_IdAndDate(USER_ID, LocalDate.of(2026, 6, 11)))
+                .thenReturn(Optional.empty());
+        when(streakRepository.findById(USER_ID)).thenReturn(Optional.of(existingStreak));
+
+        service.onTaskCompleted(taskWithEstimate(null));
+
+        assertThat(existingStreak.getCurrent()).isEqualTo(7);
+        assertThat(existingStreak.getFreezesAvailable()).isEqualTo(1);
+    }
+
+    @Test
+    void freezeGrantIsCappedAtThree() {
+        GamificationService service = serviceAt("2026-06-11T08:00:00Z");
+        Streak existingStreak = streak(20, 20, LocalDate.of(2026, 6, 10), 3); // becomes 21 today
+        when(activityDayRepository.findByUser_IdAndDate(USER_ID, LocalDate.of(2026, 6, 11)))
+                .thenReturn(Optional.empty());
+        when(streakRepository.findById(USER_ID)).thenReturn(Optional.of(existingStreak));
+
+        service.onTaskCompleted(taskWithEstimate(null));
+
+        assertThat(existingStreak.getCurrent()).isEqualTo(21);
+        assertThat(existingStreak.getFreezesAvailable()).isEqualTo(3);
+    }
+
+    @Test
     void completionAfterLocalMidnight_countsToNewLocalDay() {
         // 2026-06-10T22:30Z is 2026-06-11 01:30 in Kyiv (UTC+3) → new local day.
         GamificationService service = serviceAt("2026-06-10T22:30:00Z");
@@ -152,7 +226,7 @@ class GamificationServiceTest {
         // save() returns are ignored by the service; stub leniently so unused stubs don't fail.
         lenient().when(activityDayRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         lenient().when(streakRepository.save(any())).thenAnswer(i -> i.getArgument(0));
-        return new GamificationService(activityDayRepository, streakRepository, clock);
+        return new GamificationService(activityDayRepository, streakRepository, achievementService, clock);
     }
 
     private Task taskWithEstimate(Integer estimateMinutes) {
@@ -172,11 +246,16 @@ class GamificationServiceTest {
     }
 
     private Streak streak(int current, int longest, LocalDate lastActiveDate) {
+        return streak(current, longest, lastActiveDate, 0);
+    }
+
+    private Streak streak(int current, int longest, LocalDate lastActiveDate, int freezes) {
         Streak streak = new Streak();
         streak.setUser(user);
         streak.setCurrent(current);
         streak.setLongest(longest);
         streak.setLastActiveDate(lastActiveDate);
+        streak.setFreezesAvailable(freezes);
         return streak;
     }
 

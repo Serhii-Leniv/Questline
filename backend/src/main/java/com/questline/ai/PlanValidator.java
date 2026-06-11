@@ -1,9 +1,9 @@
 package com.questline.ai;
 
 /**
- * Validates the structure of an LLM-produced {@link GeneratedPlan}. AI output is never trusted:
- * every plan passes through here before it can be persisted. Failures carry a human-readable
- * reason that doubles as the repair instruction.
+ * Validates the structure of LLM output. AI output is never trusted: every plan/decomposition
+ * passes through here before it can be persisted. Failures carry a human-readable reason that
+ * doubles as the repair instruction.
  */
 public final class PlanValidator {
 
@@ -26,15 +26,28 @@ public final class PlanValidator {
                         "milestone \"" + milestone.title() + "\" must contain at least one task");
             }
             for (PlannedTask task : milestone.tasks()) {
-                if (isBlank(task.title())) {
-                    throw new PlanValidationException("every task must have a non-empty title (in milestone \""
-                            + milestone.title() + "\")");
-                }
-                if (task.estimateMinutes() != null && task.estimateMinutes() <= 0) {
-                    throw new PlanValidationException("task \"" + task.title()
-                            + "\" has a non-positive estimateMinutes; omit it or use a positive value");
-                }
+                validateTask(task, "milestone \"" + milestone.title() + "\"");
             }
+        }
+    }
+
+    public static void validateSubtasks(Subtasks decomposition) {
+        if (decomposition == null || decomposition.subtasks() == null
+                || decomposition.subtasks().isEmpty()) {
+            throw new PlanValidationException("the decomposition must contain at least one subtask");
+        }
+        for (PlannedTask task : decomposition.subtasks()) {
+            validateTask(task, "the decomposition");
+        }
+    }
+
+    private static void validateTask(PlannedTask task, String where) {
+        if (isBlank(task.title())) {
+            throw new PlanValidationException("every task must have a non-empty title (in " + where + ")");
+        }
+        if (task.estimateMinutes() != null && task.estimateMinutes() <= 0) {
+            throw new PlanValidationException("task \"" + task.title()
+                    + "\" has a non-positive estimateMinutes; omit it or use a positive value");
         }
     }
 

@@ -14,7 +14,9 @@ import com.questline.ai.PlannedMilestone;
 import com.questline.ai.PlannedTask;
 import com.questline.domain.AiJob;
 import com.questline.domain.AiJobStatus;
+import com.questline.domain.AiJobType;
 import com.questline.repository.AiJobRepository;
+import com.questline.service.DecomposeService;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -50,13 +52,17 @@ class PlanJobServiceTest {
     @Mock
     PlatformTransactionManager txManager;
 
+    @Mock
+    DecomposeService decomposeService;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
     private PlanJobService service;
 
     @BeforeEach
     void setUp() {
         Clock clock = Clock.fixed(Instant.parse("2026-06-10T12:00:00Z"), ZoneId.of("UTC"));
-        service = new PlanJobService(aiJobRepository, llmClient, objectMapper, txManager, clock);
+        service = new PlanJobService(aiJobRepository, llmClient, decomposeService, objectMapper,
+                txManager, clock);
     }
 
     @Test
@@ -65,7 +71,7 @@ class PlanJobServiceTest {
         when(aiJobRepository.findById(JOB_ID)).thenReturn(Optional.of(job));
         when(llmClient.generatePlan(any(PlanRequest.class))).thenReturn(PLAN);
 
-        service.generate(JOB_ID);
+        service.run(JOB_ID);
 
         assertThat(job.getStatus()).isEqualTo(AiJobStatus.SUCCEEDED);
         assertThat(job.getAttempts()).isEqualTo(1);
@@ -76,13 +82,28 @@ class PlanJobServiceTest {
     }
 
     @Test
+    void parseJob_callsParseRoadmap_andMarksSucceeded() {
+        AiJob job = new AiJob();
+        job.setStatus(AiJobStatus.PENDING);
+        job.setType(AiJobType.PARSE_ROADMAP);
+        job.setInput(Map.of("text", "Milestone 1\n- task a"));
+        when(aiJobRepository.findById(JOB_ID)).thenReturn(Optional.of(job));
+        when(llmClient.parseRoadmap("Milestone 1\n- task a")).thenReturn(PLAN);
+
+        service.run(JOB_ID);
+
+        assertThat(job.getStatus()).isEqualTo(AiJobStatus.SUCCEEDED);
+        assertThat(job.getOutput()).isNotNull();
+    }
+
+    @Test
     void failurePath_capturesErrorAndMarksFailed() {
         AiJob job = pendingJob();
         when(aiJobRepository.findById(JOB_ID)).thenReturn(Optional.of(job));
         when(llmClient.generatePlan(any(PlanRequest.class)))
                 .thenThrow(new PlanGenerationException("model gave up", null));
 
-        service.generate(JOB_ID);
+        service.run(JOB_ID);
 
         assertThat(job.getStatus()).isEqualTo(AiJobStatus.FAILED);
         assertThat(job.getError()).isEqualTo("model gave up");
@@ -95,7 +116,7 @@ class PlanJobServiceTest {
         job.setStatus(AiJobStatus.SUCCEEDED);
         when(aiJobRepository.findById(JOB_ID)).thenReturn(Optional.of(job));
 
-        service.generate(JOB_ID);
+        service.run(JOB_ID);
 
         verify(llmClient, never()).generatePlan(any());
     }
@@ -104,6 +125,7 @@ class PlanJobServiceTest {
     private AiJob pendingJob() {
         AiJob job = new AiJob();
         job.setStatus(AiJobStatus.PENDING);
+        job.setType(AiJobType.GENERATE_PLAN);
         job.setInput(objectMapper.convertValue(
                 new PlanRequest("mid-level", "senior", null, 300), Map.class));
         return job;

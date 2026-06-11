@@ -3,12 +3,15 @@ import { api, ApiError } from "../api";
 import type { Goal } from "../types";
 import { GoalDetail } from "./GoalDetail";
 import { PlanGenerator } from "./PlanGenerator";
+import { RoadmapImporter } from "./RoadmapImporter";
+
+type Mode = "ai" | "import";
 
 export function GoalsView({ onChanged }: { onChanged: () => void }) {
   const [goals, setGoals] = useState<Goal[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
+  const [mode, setMode] = useState<Mode | null>(null);
 
   const load = () => {
     setError(null);
@@ -29,11 +32,13 @@ export function GoalsView({ onChanged }: { onChanged: () => void }) {
     );
   }
 
-  if (creating) {
+  if (mode) {
+    const onAccepted = (goalId: string) => { setMode(null); setSelected(goalId); };
     return (
       <div>
-        <button onClick={() => setCreating(false)} style={{ marginBottom: "0.75rem" }}>← Goals</button>
-        <PlanGenerator onAccepted={(goalId) => { setCreating(false); setSelected(goalId); }} />
+        <button onClick={() => setMode(null)} style={{ marginBottom: "0.75rem" }}>← Goals</button>
+        {mode === "ai" ? <PlanGenerator onAccepted={onAccepted} />
+          : <RoadmapImporter onAccepted={onAccepted} />}
       </div>
     );
   }
@@ -42,7 +47,10 @@ export function GoalsView({ onChanged }: { onChanged: () => void }) {
     <div>
       <div className="row" style={{ marginBottom: "1rem" }}>
         <h2 style={{ margin: 0 }}>Your goals</h2>
-        <button className="primary" onClick={() => setCreating(true)}>+ New goal (AI)</button>
+        <span style={{ display: "flex", gap: "0.5rem" }}>
+          <button onClick={() => setMode("import")}>Import roadmap</button>
+          <button className="primary" onClick={() => setMode("ai")}>New goal with AI</button>
+        </span>
       </div>
 
       {error && <div className="panel error">{error}</div>}

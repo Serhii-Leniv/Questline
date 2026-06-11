@@ -12,9 +12,11 @@ import com.questline.repository.MilestoneRepository;
 import com.questline.repository.TaskRepository;
 import com.questline.repository.UserRepository;
 import java.time.Clock;
+import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.temporal.TemporalAdjusters;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,28 +31,36 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class TaskService {
 
+    /** Assumed minutes for a task with no estimate, used by capacity-based planning. */
+    private static final int DEFAULT_TASK_MINUTES = 30;
+
     private final TaskRepository taskRepository;
     private final GoalRepository goalRepository;
     private final MilestoneRepository milestoneRepository;
     private final UserRepository userRepository;
     private final GamificationService gamificationService;
+    private final ProgressService progressService;
+    private final TopicService topicService;
     private final Clock clock;
 
     public TaskService(TaskRepository taskRepository, GoalRepository goalRepository,
                        MilestoneRepository milestoneRepository, UserRepository userRepository,
-                       GamificationService gamificationService, Clock clock) {
+                       GamificationService gamificationService, ProgressService progressService,
+                       TopicService topicService, Clock clock) {
         this.taskRepository = taskRepository;
         this.goalRepository = goalRepository;
         this.milestoneRepository = milestoneRepository;
         this.userRepository = userRepository;
         this.gamificationService = gamificationService;
+        this.progressService = progressService;
+        this.topicService = topicService;
         this.clock = clock;
     }
 
     @Transactional
     public Task create(UUID userId, UUID goalId, UUID milestoneId, String title, String description,
                        Integer estimateMinutes, LocalDate scheduledFor, String notes,
-                       List<ResourceLink> resources) {
+                       List<ResourceLink> resources, List<String> topics) {
         Goal goal = goalRepository.findByIdAndUser_Id(goalId, userId)
                 .orElseThrow(() -> new NotFoundException("Goal not found"));
         Milestone milestone = null;
@@ -69,6 +79,7 @@ public class TaskService {
         task.setScheduledFor(scheduledFor);
         task.setNotes(notes);
         task.setResources(resources);
+        task.setTopics(topicService.findOrCreate(userId, topics));
         // Append to the end of the goal's task list.
         task.setOrderIndex((int) taskRepository.countByGoal_Id(goalId));
         return taskRepository.save(task);
@@ -85,8 +96,58 @@ public class TaskService {
     public List<Task> today(UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found"));
-        LocalDate today = LocalDate.now(clock.withZone(ZoneId.of(user.getTimezone())));
+        return taskRepository.findByUser_IdAndScheduledForOrderByOrderIndexAscCreatedAtAsc(
+                userId, today(user));
+    }
+
+    /**
+     * Auto-schedules unscheduled TODO tasks onto today until the user's remaining daily capacity
+     * is used up, taking the highest-priority tasks first (soonest goal deadline, then position).
+     * Returns today's task list after planning.
+     */
+    @Transactional
+    public List<Task> planToday(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+        LocalDate today = today(user);
+
+        List<Task> alreadyToday =
+                taskRepository.findByUser_IdAndScheduledForOrderByOrderIndexAscCreatedAtAsc(userId, today);
+        int committed = alreadyToday.stream()
+                .filter(t -> t.getStatus() != TaskStatus.DONE)
+                .mapToInt(TaskService::estimate)
+                .sum();
+        int remaining = Math.max(0, user.getDailyCapacityMinutes() - committed);
+
+        for (Task candidate : taskRepository.findPlannable(userId, TaskStatus.TODO)) {
+            int cost = estimate(candidate);
+            if (cost <= remaining) {
+                candidate.setScheduledFor(today);
+                remaining -= cost;
+            }
+        }
         return taskRepository.findByUser_IdAndScheduledForOrderByOrderIndexAscCreatedAtAsc(userId, today);
+    }
+
+    /** Tasks scheduled within the 7-day week starting Monday (or {@code start} if given). */
+    @Transactional(readOnly = true)
+    public List<Task> week(UUID userId, LocalDate start) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+        LocalDate from = start != null
+                ? start
+                : today(user).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        return taskRepository.findByUser_IdAndScheduledForBetweenOrderByScheduledForAscOrderIndexAsc(
+                userId, from, from.plusDays(6));
+    }
+
+    private LocalDate today(User user) {
+        return LocalDate.now(clock.withZone(ZoneId.of(user.getTimezone())));
+    }
+
+    /** Minutes a task is expected to take; tasks without an estimate use a default. */
+    private static int estimate(Task task) {
+        return task.getEstimateMinutes() != null ? task.getEstimateMinutes() : DEFAULT_TASK_MINUTES;
     }
 
     /** Partial update of editable fields — only non-null values are applied. */
@@ -123,6 +184,8 @@ public class TaskService {
             task.setCompletedAt(Instant.now(clock));
             gamificationService.onTaskCompleted(task);
         }
+        // Recompute on every status change — progress depends on the current done counts.
+        progressService.recompute(task);
         return task;
     }
 

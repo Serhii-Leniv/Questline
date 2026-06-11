@@ -65,4 +65,26 @@ class PlanValidatorTest {
                 new PlannedMilestone("M", "d", List.of(new PlannedTask("T", "d", null)))));
         assertThatCode(() -> PlanValidator.validate(plan)).doesNotThrowAnyException();
     }
+
+    @Test
+    void acceptsValidSubtasks() {
+        Subtasks subtasks = new Subtasks(List.of(
+                new PlannedTask("Step 1", "d", 20), new PlannedTask("Step 2", null, null)));
+        assertThatCode(() -> PlanValidator.validateSubtasks(subtasks)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void rejectsEmptySubtasks() {
+        assertThatThrownBy(() -> PlanValidator.validateSubtasks(new Subtasks(List.of())))
+                .isInstanceOf(PlanValidationException.class)
+                .hasMessageContaining("at least one subtask");
+    }
+
+    @Test
+    void rejectsBlankSubtaskTitle() {
+        Subtasks subtasks = new Subtasks(List.of(new PlannedTask(" ", "d", 10)));
+        assertThatThrownBy(() -> PlanValidator.validateSubtasks(subtasks))
+                .isInstanceOf(PlanValidationException.class)
+                .hasMessageContaining("title");
+    }
 }

@@ -60,8 +60,13 @@ public class GoalService {
     @Transactional(readOnly = true)
     public Goal getTree(UUID userId, UUID goalId) {
         Goal goal = get(userId, goalId);
-        goal.getMilestones().forEach(milestone -> milestone.getTasks().size());
+        goal.getMilestones().forEach(milestone -> milestone.getTasks().forEach(GoalService::initSubtasks));
         return goal;
+    }
+
+    /** Recursively initializes a task's subtask collections while the session is open. */
+    private static void initSubtasks(com.questline.domain.Task task) {
+        task.getSubtasks().forEach(GoalService::initSubtasks);
     }
 
     /** Partial update: only non-null fields are applied. */

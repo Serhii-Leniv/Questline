@@ -7,6 +7,7 @@ import com.questline.domain.Milestone;
 import com.questline.domain.MilestoneStatus;
 import com.questline.domain.Task;
 import com.questline.domain.TaskStatus;
+import com.questline.domain.Topic;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
@@ -79,10 +80,16 @@ public record GoalTreeResponse(
             Integer estimateMinutes,
             int orderIndex,
             TaskStatus status,
-            LocalDate scheduledFor
+            LocalDate scheduledFor,
+            List<String> topics,
+            List<TaskNode> subtasks
     ) {
 
         static TaskNode from(Task task) {
+            List<TaskNode> subtasks = task.getSubtasks().stream()
+                    .sorted(Comparator.comparingInt(Task::getOrderIndex))
+                    .map(TaskNode::from)
+                    .toList();
             return new TaskNode(
                     task.getId(),
                     task.getTitle(),
@@ -90,7 +97,9 @@ public record GoalTreeResponse(
                     task.getEstimateMinutes(),
                     task.getOrderIndex(),
                     task.getStatus(),
-                    task.getScheduledFor());
+                    task.getScheduledFor(),
+                    task.getTopics().stream().map(Topic::getName).toList(),
+                    subtasks);
         }
     }
 }

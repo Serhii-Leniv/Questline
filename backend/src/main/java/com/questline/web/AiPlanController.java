@@ -33,14 +33,41 @@ public class AiPlanController {
                 input.target(), input.targetDate(), input.weeklyCapacityMinutes()));
     }
 
+    @PostMapping("/roadmaps/parse")
+    public PlanJobResponse parse(@AuthenticationPrincipal Jwt jwt,
+                                 @Valid @RequestBody RoadmapInput input) {
+        return PlanJobResponse.from(aiPlanService.startParse(userId(jwt), input.text()));
+    }
+
     @GetMapping("/jobs/{jobId}")
     public AiJobResponse job(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID jobId) {
         return AiJobResponse.from(aiPlanService.getJob(userId(jwt), jobId));
     }
 
+    @PostMapping("/plans/{goalId}/refine")
+    public PlanJobResponse refine(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID goalId,
+                                  @Valid @RequestBody RefineInput input) {
+        return PlanJobResponse.from(aiPlanService.startRefine(userId(jwt), goalId, input.message()));
+    }
+
+    @PostMapping("/tasks/{taskId}/decompose")
+    public PlanJobResponse decompose(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID taskId) {
+        return PlanJobResponse.from(aiPlanService.startDecompose(userId(jwt), taskId));
+    }
+
     @PostMapping("/plans/{goalId}/accept")
     public GoalTreeResponse accept(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID goalId) {
         return GoalTreeResponse.from(aiPlanService.accept(userId(jwt), goalId));
+    }
+
+    @PostMapping("/goals/{goalId}/replan")
+    public PlanJobResponse replan(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID goalId) {
+        return PlanJobResponse.from(aiPlanService.startReplan(userId(jwt), goalId));
+    }
+
+    @PostMapping("/goals/{goalId}/replan/accept")
+    public GoalTreeResponse acceptReplan(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID goalId) {
+        return GoalTreeResponse.from(aiPlanService.acceptReplan(userId(jwt), goalId));
     }
 
     private static UUID userId(Jwt jwt) {

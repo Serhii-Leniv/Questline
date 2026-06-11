@@ -24,4 +24,16 @@ public interface LlmClient {
      * @throws IllegalStateException   if no provider is configured
      */
     GeneratedPlan generatePlan(PlanRequest request);
+
+    /**
+     * Parses a user-provided roadmap (free text) into the same structured plan, faithfully —
+     * without inventing content beyond the text. Validated/repaired like {@link #generatePlan}.
+     */
+    GeneratedPlan parseRoadmap(String roadmapText);
+
+    /**
+     * Breaks one task into smaller, concrete subtasks given the surrounding goal context.
+     * Validated/repaired like the other calls.
+     */
+    java.util.List<PlannedTask> decomposeTask(String taskContext);
 }

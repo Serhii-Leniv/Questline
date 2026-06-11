@@ -2,8 +2,10 @@ package com.questline.web;
 
 import com.questline.service.TaskService;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -36,12 +39,24 @@ public class TaskController {
                                @Valid @RequestBody CreateTaskRequest req) {
         return TaskResponse.from(taskService.create(userId(jwt), req.goalId(), req.milestoneId(),
                 req.title(), req.description(), req.estimateMinutes(), req.scheduledFor(),
-                req.notes(), req.resources()));
+                req.notes(), req.resources(), req.topics()));
     }
 
     @GetMapping("/today")
     public List<TaskResponse> today(@AuthenticationPrincipal Jwt jwt) {
         return taskService.today(userId(jwt)).stream().map(TaskResponse::from).toList();
+    }
+
+    @PostMapping("/plan-day")
+    public List<TaskResponse> planDay(@AuthenticationPrincipal Jwt jwt) {
+        return taskService.planToday(userId(jwt)).stream().map(TaskResponse::from).toList();
+    }
+
+    @GetMapping("/week")
+    public List<TaskResponse> week(@AuthenticationPrincipal Jwt jwt,
+                                   @RequestParam(required = false)
+                                   @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start) {
+        return taskService.week(userId(jwt), start).stream().map(TaskResponse::from).toList();
     }
 
     @PatchMapping("/{id}")

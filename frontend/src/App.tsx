@@ -3,10 +3,11 @@ import { api, getToken, setToken } from "./api";
 import type { Overview } from "./types";
 import { Login } from "./views/Login";
 import { TodayView } from "./views/TodayView";
+import { WeekView } from "./views/WeekView";
 import { GoalsView } from "./views/GoalsView";
 import { SettingsView } from "./views/SettingsView";
 
-type Tab = "today" | "goals" | "settings";
+type Tab = "today" | "week" | "goals" | "settings";
 
 /** On the OAuth callback route, pull the JWT out of the URL fragment and store it. */
 function captureCallbackToken(): void {
@@ -41,8 +42,9 @@ export function App() {
         <span className="brand">Questline</span>
         {overview && (
           <div className="stats">
-            <span>🔥 <b>{overview.currentStreak}</b> day streak</span>
-            <span>Lv <b>{overview.level}</b></span>
+            <span>Streak <b>{overview.currentStreak}</b></span>
+            {overview.freezesAvailable > 0 && <span>Freezes <b>{overview.freezesAvailable}</b></span>}
+            <span>Level <b>{overview.level}</b></span>
             <span><b>{overview.xpTotal}</b> XP</span>
           </div>
         )}
@@ -50,11 +52,13 @@ export function App() {
 
       <nav className="tabs">
         <button aria-current={tab === "today"} onClick={() => setTab("today")}>Today</button>
+        <button aria-current={tab === "week"} onClick={() => setTab("week")}>Week</button>
         <button aria-current={tab === "goals"} onClick={() => setTab("goals")}>Goals</button>
         <button aria-current={tab === "settings"} onClick={() => setTab("settings")}>Settings</button>
       </nav>
 
       {tab === "today" && <TodayView onChanged={refreshStats} />}
+      {tab === "week" && <WeekView onChanged={refreshStats} />}
       {tab === "goals" && <GoalsView onChanged={refreshStats} />}
       {tab === "settings" && <SettingsView />}
     </div>

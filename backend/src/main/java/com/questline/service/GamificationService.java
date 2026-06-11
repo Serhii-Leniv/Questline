@@ -9,6 +9,7 @@ import com.questline.repository.StreakRepository;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,8 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
  * Deterministic gamification rules (SPEC §10). On task completion it records the day's activity,
  * advances the streak, and awards XP — all in the user's IANA timezone (local midnight boundary).
  *
- * <p>MVP scope: ActivityDay + Streak + XP. Streak freezes, achievements, and the recurring
- * "streak broken" job are Phase 2.
+ * <p>Scope: ActivityDay + Streak (with freezes) + XP. Achievements and the recurring
+ * "streak broken" job are still Phase 2.
  */
 @Service
 public class GamificationService {
@@ -27,15 +28,21 @@ public class GamificationService {
     /** Streak bonus caps at +60% (streak of 30+). */
     private static final int STREAK_BONUS_CAP_DAYS = 30;
     private static final double STREAK_BONUS_PER_DAY = 0.02;
+    /** One freeze is granted every 7 days of streak, up to a cap of 3. */
+    private static final int FREEZE_GRANT_INTERVAL = 7;
+    private static final int FREEZE_CAP = 3;
 
     private final ActivityDayRepository activityDayRepository;
     private final StreakRepository streakRepository;
+    private final AchievementService achievementService;
     private final Clock clock;
 
     public GamificationService(ActivityDayRepository activityDayRepository,
-                               StreakRepository streakRepository, Clock clock) {
+                               StreakRepository streakRepository,
+                               AchievementService achievementService, Clock clock) {
         this.activityDayRepository = activityDayRepository;
         this.streakRepository = streakRepository;
+        this.achievementService = achievementService;
         this.clock = clock;
     }
 
@@ -73,21 +80,37 @@ public class GamificationService {
 
         activityDayRepository.save(day);
         streakRepository.save(streak);
+        achievementService.evaluate(user, streak);
     }
 
     private static void advanceStreak(Streak streak, LocalDate localDate) {
         LocalDate last = streak.getLastActiveDate();
-        if (last != null && last.equals(localDate)) {
-            return; // already advanced today
+        if (last != null && !last.isBefore(localDate)) {
+            return; // already advanced today (or clock skew) — never double-count
         }
-        if (last != null && last.equals(localDate.minusDays(1))) {
-            streak.setCurrent(streak.getCurrent() + 1);
-        } else {
-            // First active day ever, or a gap broke the chain (MVP has no freezes).
+        if (last == null) {
             streak.setCurrent(1);
+        } else {
+            long missedDays = ChronoUnit.DAYS.between(last, localDate) - 1; // 0 when consecutive
+            if (missedDays <= 0) {
+                streak.setCurrent(streak.getCurrent() + 1);
+            } else if (missedDays <= streak.getFreezesAvailable()) {
+                // Spend one freeze per missed day to keep the chain alive.
+                streak.setFreezesAvailable(streak.getFreezesAvailable() - (int) missedDays);
+                streak.setCurrent(streak.getCurrent() + 1);
+            } else {
+                streak.setCurrent(1); // gap too large to cover — chain broken
+            }
         }
         streak.setLastActiveDate(localDate);
         streak.setLongest(Math.max(streak.getLongest(), streak.getCurrent()));
+        grantFreezeIfThreshold(streak);
+    }
+
+    private static void grantFreezeIfThreshold(Streak streak) {
+        if (streak.getCurrent() > 0 && streak.getCurrent() % FREEZE_GRANT_INTERVAL == 0) {
+            streak.setFreezesAvailable(Math.min(FREEZE_CAP, streak.getFreezesAvailable() + 1));
+        }
     }
 
     private static double streakMultiplier(int current) {

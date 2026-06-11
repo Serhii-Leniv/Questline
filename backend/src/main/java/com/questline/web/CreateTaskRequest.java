@@ -17,6 +17,7 @@ public record CreateTaskRequest(
         @Positive Integer estimateMinutes,
         LocalDate scheduledFor,
         String notes,
-        List<ResourceLink> resources
+        List<ResourceLink> resources,
+        List<String> topics
 ) {
 }

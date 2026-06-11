@@ -1,5 +1,6 @@
 package com.questline.ai;
 
+import java.util.function.UnaryOperator;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
@@ -29,7 +30,31 @@ public class SpringAiLlmClient implements LlmClient {
               if it doesn't fit, say so in `summary` and prioritize.
             - Skip topics the user already knows.
             - Every milestone must have at least one task.
+            - Tag each task with 1–3 concise `topics` (short subject labels).
             - Write all human-readable text (titles/descriptions/summary) in the USER'S language.
+            """;
+
+    private static final String PARSE_SYSTEM_PROMPT = """
+            You parse a user-provided roadmap into Questline's structured plan. Extract the
+            milestones and their tasks faithfully from the text — do NOT invent content beyond
+            what the text states or clearly implies.
+
+            Rules:
+            - Preserve the order given in the text.
+            - Every milestone must have at least one task.
+            - Set estimateMinutes only if the text suggests a duration; otherwise leave it null.
+            - Keep all human-readable text in the text's original language.
+            """;
+
+    private static final String DECOMPOSE_SYSTEM_PROMPT = """
+            You break a single task into smaller, concrete subtasks for Questline. Use the goal
+            context to stay relevant.
+
+            Rules:
+            - Each subtask must be atomic: doable in one focused sitting, with a realistic
+              estimateMinutes (a positive whole number) when you can judge it.
+            - Produce 2–6 subtasks; don't pad.
+            - Keep all human-readable text in the user's language.
             """;
 
     private final ObjectProvider<ChatClient.Builder> chatClientBuilder;
@@ -57,28 +82,54 @@ public class SpringAiLlmClient implements LlmClient {
 
     @Override
     public GeneratedPlan generatePlan(PlanRequest request) {
+        return runStructured(PLAN_SYSTEM_PROMPT, hint -> buildUserPrompt(request, hint));
+    }
+
+    @Override
+    public GeneratedPlan parseRoadmap(String roadmapText) {
+        return runStructured(PARSE_SYSTEM_PROMPT, hint -> buildParsePrompt(roadmapText, hint));
+    }
+
+    @Override
+    public java.util.List<PlannedTask> decomposeTask(String taskContext) {
+        Subtasks result = runEntity(Subtasks.class, DECOMPOSE_SYSTEM_PROMPT,
+                hint -> buildDecomposePrompt(taskContext, hint),
+                "subtasks", PlanValidator::validateSubtasks);
+        return result.subtasks();
+    }
+
+    /** Runs one plan-shaped structured-output call through the validate/repair loop. */
+    private GeneratedPlan runStructured(String systemPrompt, UnaryOperator<String> userPromptForHint) {
+        return runEntity(GeneratedPlan.class, systemPrompt, userPromptForHint, "plan",
+                PlanValidator::validate);
+    }
+
+    /** Generic: prompt → map to {@code type} → validate, with a repair loop on invalid output. */
+    private <T> T runEntity(Class<T> type, String systemPrompt,
+                            UnaryOperator<String> userPromptForHint, String noun,
+                            PlanRepairLoop.Validator<T> validator) {
         ChatClient client = requireClient();
         return repairLoop.run(repairHint -> {
-            String userPrompt = buildUserPrompt(request, repairHint);
             try {
-                GeneratedPlan plan = client.prompt()
-                        .system(PLAN_SYSTEM_PROMPT)
-                        .user(userPrompt)
+                T value = client.prompt()
+                        .system(systemPrompt)
+                        .user(userPromptForHint.apply(repairHint))
                         .call()
-                        .entity(GeneratedPlan.class);
-                if (plan == null) {
-                    throw new PlanValidationException("the model returned no parseable plan");
+                        .entity(type);
+                if (value == null) {
+                    throw new PlanValidationException("the model returned no parseable " + noun);
                 }
-                return plan;
+                return value;
             } catch (PlanValidationException e) {
                 throw e;
             } catch (RuntimeException e) {
                 // Structured-output conversion failed (malformed JSON, wrong shape). Treat it as a
                 // repairable content error; genuine transient provider errors are already retried
                 // by Spring AI before reaching here.
-                throw new PlanValidationException("the output could not be parsed as a plan: " + e.getMessage());
+                throw new PlanValidationException(
+                        "the output could not be parsed as a " + noun + ": " + e.getMessage());
             }
-        });
+        }, validator);
     }
 
     private ChatClient requireClient() {
@@ -102,6 +153,25 @@ public class SpringAiLlmClient implements LlmClient {
         if (repairHint != null) {
             sb.append("\nYour previous answer was rejected: ").append(repairHint)
                     .append("\nReturn a corrected plan that fixes exactly this problem.");
+        }
+        return sb.toString();
+    }
+
+    private static String buildParsePrompt(String roadmapText, String repairHint) {
+        StringBuilder sb = new StringBuilder("Parse this roadmap into the structured plan:\n\n")
+                .append(roadmapText);
+        if (repairHint != null) {
+            sb.append("\n\nYour previous answer was rejected: ").append(repairHint)
+                    .append("\nReturn a corrected plan that fixes exactly this problem.");
+        }
+        return sb.toString();
+    }
+
+    private static String buildDecomposePrompt(String taskContext, String repairHint) {
+        StringBuilder sb = new StringBuilder(taskContext);
+        if (repairHint != null) {
+            sb.append("\n\nYour previous answer was rejected: ").append(repairHint)
+                    .append("\nReturn corrected subtasks that fix exactly this problem.");
         }
         return sb.toString();
     }

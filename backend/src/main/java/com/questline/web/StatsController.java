@@ -2,7 +2,9 @@ package com.questline.web;
 
 import com.questline.domain.Streak;
 import com.questline.domain.User;
+import com.questline.service.AchievementService;
 import com.questline.service.StatsService;
+import com.questline.service.TopicService;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -22,9 +24,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class StatsController {
 
     private final StatsService statsService;
+    private final AchievementService achievementService;
+    private final TopicService topicService;
 
-    public StatsController(StatsService statsService) {
+    public StatsController(StatsService statsService, AchievementService achievementService,
+                          TopicService topicService) {
         this.statsService = statsService;
+        this.achievementService = achievementService;
+        this.topicService = topicService;
     }
 
     @GetMapping("/streak")
@@ -47,7 +54,17 @@ public class StatsController {
         User user = statsService.getUser(userId);
         Streak streak = statsService.streak(userId);
         return new OverviewResponse(user.getXpTotal(), StatsService.levelFor(user.getXpTotal()),
-                streak.getCurrent(), streak.getLongest());
+                streak.getCurrent(), streak.getLongest(), streak.getFreezesAvailable());
+    }
+
+    @GetMapping("/achievements")
+    public List<AchievementResponse> achievements(@AuthenticationPrincipal Jwt jwt) {
+        return achievementService.unlocked(userId(jwt)).stream().map(AchievementResponse::from).toList();
+    }
+
+    @GetMapping("/topics")
+    public List<TopicProgressResponse> topics(@AuthenticationPrincipal Jwt jwt) {
+        return topicService.progress(userId(jwt)).stream().map(TopicProgressResponse::from).toList();
     }
 
     private static UUID userId(Jwt jwt) {

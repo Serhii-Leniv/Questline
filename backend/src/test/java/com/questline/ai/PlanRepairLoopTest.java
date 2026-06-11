@@ -19,7 +19,7 @@ class PlanRepairLoopTest {
         GeneratedPlan result = new PlanRepairLoop(3).run(hint -> {
             calls.incrementAndGet();
             return VALID;
-        });
+        }, PlanValidator::validate);
         assertThat(result).isSameAs(VALID);
         assertThat(calls.get()).isEqualTo(1);
     }
@@ -37,7 +37,7 @@ class PlanRepairLoopTest {
                 secondHint.append(hint);
             }
             return VALID;
-        });
+        }, PlanValidator::validate);
         assertThat(result).isSameAs(VALID);
         assertThat(calls.get()).isEqualTo(2);
         assertThat(secondHint).isNotEmpty(); // the validation message was passed back
@@ -49,7 +49,8 @@ class PlanRepairLoopTest {
         assertThatThrownBy(() -> new PlanRepairLoop(3).run(hint -> {
             calls.incrementAndGet();
             return INVALID;
-        })).isInstanceOf(PlanGenerationException.class)
+        }, PlanValidator::validate))
+                .isInstanceOf(PlanGenerationException.class)
                 .hasMessageContaining("3 attempts");
         assertThat(calls.get()).isEqualTo(3);
     }
@@ -59,6 +60,6 @@ class PlanRepairLoopTest {
         new PlanRepairLoop(1).run(hint -> {
             assertThat(hint).isNull();
             return VALID;
-        });
+        }, PlanValidator::validate);
     }
 }
