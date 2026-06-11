@@ -81,6 +81,8 @@ export const api = {
   updateAiSettings: (body: { baseUrl: string; model: string; apiKey?: string }) =>
     request<AiSettings>("PUT", "/me/ai-settings", body),
   clearAiSettings: () => request<void>("DELETE", "/me/ai-settings"),
+  exportData: () => request<unknown>("GET", "/me/export"),
+  deleteAccount: () => request<void>("DELETE", "/me"),
 
   overview: () => request<Overview>("GET", "/stats/overview"),
   achievements: () => request<Achievement[]>("GET", "/stats/achievements"),

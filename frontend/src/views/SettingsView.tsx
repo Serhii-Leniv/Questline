@@ -76,6 +76,31 @@ export function SettingsView() {
     }
   };
 
+  const exportData = async () => {
+    try {
+      const data = await api.exportData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "questline-export.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : String(e));
+    }
+  };
+
+  const deleteAccount = async () => {
+    if (!window.confirm("Delete your account and all your data? This cannot be undone.")) return;
+    try {
+      await api.deleteAccount();
+      logout();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : String(e));
+    }
+  };
+
   if (!me) return <div className="panel muted">Loading…</div>;
 
   return (
@@ -134,6 +159,20 @@ export function SettingsView() {
         </div>
         {aiStatus && <p className="muted">{aiStatus}</p>}
         {aiError && <p className="error">{aiError}</p>}
+      </div>
+
+      <div className="panel">
+        <h3 style={{ marginTop: 0 }}>Data &amp; account</h3>
+        <div className="row">
+          <button onClick={exportData}>Export my data</button>
+          <button onClick={deleteAccount} style={{ borderColor: "var(--bad)", color: "var(--bad)" }}>
+            Delete account
+          </button>
+        </div>
+        <p className="muted" style={{ marginTop: "0.5rem", fontSize: "0.82rem" }}>
+          Export downloads all your goals, tasks, streak and stats as JSON. Deleting removes your
+          account and all data permanently.
+        </p>
       </div>
     </div>
   );

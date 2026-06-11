@@ -56,6 +56,15 @@ public class UserService {
         return user;
     }
 
+    /** Deletes the user and all their data (FK cascades handle the rest; see V9 migration). */
+    @Transactional
+    public void deleteAccount(UUID userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new NotFoundException("User not found");
+        }
+        userRepository.deleteById(userId);
+    }
+
     private static String validateTimezone(String timezone) {
         try {
             return ZoneId.of(timezone).getId();
