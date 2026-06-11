@@ -2,10 +2,13 @@ package com.questline.web;
 
 import com.questline.domain.User;
 import com.questline.service.UserService;
+import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -24,6 +27,14 @@ public class MeController {
     @GetMapping("/api/me")
     public MeResponse me(@AuthenticationPrincipal Jwt jwt) {
         User user = userService.getById(UUID.fromString(jwt.getSubject()));
+        return MeResponse.from(user);
+    }
+
+    @PatchMapping("/api/me/settings")
+    public MeResponse updateSettings(@AuthenticationPrincipal Jwt jwt,
+                                     @Valid @RequestBody UpdateSettingsRequest req) {
+        User user = userService.updateSettings(UUID.fromString(jwt.getSubject()),
+                req.timezone(), req.dailyCapacityMinutes(), req.dailyTaskGoal());
         return MeResponse.from(user);
     }
 }

@@ -1,9 +1,13 @@
 package com.questline.service;
 
+import com.questline.common.ApiException;
 import com.questline.common.NotFoundException;
 import com.questline.domain.User;
 import com.questline.repository.UserRepository;
+import java.time.DateTimeException;
+import java.time.ZoneId;
 import java.util.UUID;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,5 +37,31 @@ public class UserService {
     public User getById(UUID id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("User not found"));
+    }
+
+    /** Partial settings update; only non-null fields are applied. */
+    @Transactional
+    public User updateSettings(UUID userId, String timezone, Integer dailyCapacityMinutes,
+                               Integer dailyTaskGoal) {
+        User user = getById(userId);
+        if (timezone != null) {
+            user.setTimezone(validateTimezone(timezone));
+        }
+        if (dailyCapacityMinutes != null) {
+            user.setDailyCapacityMinutes(dailyCapacityMinutes);
+        }
+        if (dailyTaskGoal != null) {
+            user.setDailyTaskGoal(dailyTaskGoal);
+        }
+        return user;
+    }
+
+    private static String validateTimezone(String timezone) {
+        try {
+            return ZoneId.of(timezone).getId();
+        } catch (DateTimeException e) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_TIMEZONE",
+                    "Unknown IANA timezone: " + timezone);
+        }
     }
 }

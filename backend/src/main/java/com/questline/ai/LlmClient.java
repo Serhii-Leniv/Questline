@@ -15,4 +15,13 @@ public interface LlmClient {
 
     /** Minimal single-shot completion. Phase 0 sanity use only. */
     LlmReply complete(String systemPrompt, String userPrompt);
+
+    /**
+     * Generates a decomposed roadmap from the user's goal input. The returned plan is already
+     * validated (structurally sound) — the implementation runs the validate/repair loop internally.
+     *
+     * @throws PlanGenerationException if no valid plan could be produced within the repair budget
+     * @throws IllegalStateException   if no provider is configured
+     */
+    GeneratedPlan generatePlan(PlanRequest request);
 }

@@ -4,22 +4,27 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 /**
  * Boots the full Spring context against a real Postgres in Testcontainers, with Flyway running
  * the migrations. Subclasses get a ready application on a random port.
+ *
+ * <p>The container is a <b>singleton</b> started once in a static initializer and shared across
+ * every test class — Ryuk stops it at JVM exit. A per-class {@code @Container} would start (and
+ * tear down) a fresh Postgres for each IT class, which is slow and, on some Docker hosts, flaky
+ * when two containers' lifecycles overlap.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Testcontainers
 public abstract class AbstractIntegrationTest {
 
-    @Container
     @SuppressWarnings("resource")
     static final PostgreSQLContainer<?> POSTGRES =
             new PostgreSQLContainer<>(DockerImageName.parse("postgres:16-alpine"));
+
+    static {
+        POSTGRES.start();
+    }
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {

@@ -1,7 +1,18 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # Questline — conventions for Claude Code
 
 Questline is an AI-powered goal decomposition + streak tracker. Full spec: [SPEC.md](SPEC.md).
 Build **phase by phase** per SPEC §13 — never "do it all at once".
+
+## Current state
+Phase 0 (skeleton) is complete: OAuth2 login + self-issued JWT (`/api/me`), `GET /api/ping`,
+JobRunr storage wired, the `ai/` seam (`LlmClient`), Flyway `V1__init.sql`, Testcontainers IT,
+CI, and the Vite/React scaffold. Most `service/`, `web/`, `jobs/`, and `ai/` planning code from
+SPEC §7–10 is **not built yet** — check what exists before assuming a class is there. The `jobs/`
+package is currently just a `package-info.java` placeholder.
 
 ## Stack
 Java 21, Spring Boot 4.0, Spring Web (REST), Spring Data JPA + Flyway, PostgreSQL,
@@ -13,6 +24,20 @@ Frontend: React + TS (Vite) talking to REST.
 > is still pre-GA: pinned to `2.0.0-RC2` in [backend/build.gradle.kts](backend/build.gradle.kts).
 > Moving to GA is a one-line BOM bump. Spring Boot 4 / Spring AI 2.0 are new — follow current
 > official docs, not 3.x examples (Jakarta EE 11, Jackson 3, JUnit 5 only — no JUnit 4).
+
+## Commands
+All Gradle commands run from `backend/` via the wrapper (`./gradlew` / `.\gradlew.bat`).
+- **Build + test:** `./gradlew build test` — **needs Docker running** (Testcontainers starts a real
+  Postgres 16). This is the DoD gate before declaring work done.
+- **Single test class:** `./gradlew test --tests com.questline.PingIntegrationTest`
+- **Single test method:** `./gradlew test --tests "com.questline.PingIntegrationTest.ping_isPublic_andReturnsOk"`
+- **Run the app:** load `.env` into the environment first, then `./gradlew bootRun` (the README has
+  the PowerShell `.env`-loading snippet). App on `:8080`; verify with `/api/ping` and
+  `/actuator/health`.
+- **Local Postgres only:** `docker compose up -d db`. **Whole stack:** `docker compose up --build`.
+- **Frontend:** from `frontend/` — `npm install`, `npm run dev` (`:5173`, proxies `/api` to
+  `:8080`), `npm run build` (`tsc && vite build`).
+- Boot jar is named `questline.jar`; entry point is `com.questline.QuestlineApplication`.
 
 ## Architecture rules
 - Layers: `web/` (@RestController, thin: validation + call service) → `service/` (business logic,
