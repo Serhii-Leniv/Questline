@@ -51,6 +51,12 @@ export interface HeatmapEntry {
   count: number;
 }
 
+export interface AiSettings {
+  configured: boolean;
+  baseUrl: string | null;
+  model: string | null;
+}
+
 export interface Goal {
   id: string;
   title: string;

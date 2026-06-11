@@ -20,20 +20,21 @@ public interface LlmClient {
      * Generates a decomposed roadmap from the user's goal input. The returned plan is already
      * validated (structurally sound) — the implementation runs the validate/repair loop internally.
      *
+     * @param settings the user's own provider credentials (BYOK), or null to use the server default
      * @throws PlanGenerationException if no valid plan could be produced within the repair budget
      * @throws IllegalStateException   if no provider is configured
      */
-    GeneratedPlan generatePlan(PlanRequest request);
+    GeneratedPlan generatePlan(PlanRequest request, AiProviderSettings settings);
 
     /**
      * Parses a user-provided roadmap (free text) into the same structured plan, faithfully —
      * without inventing content beyond the text. Validated/repaired like {@link #generatePlan}.
      */
-    GeneratedPlan parseRoadmap(String roadmapText);
+    GeneratedPlan parseRoadmap(String roadmapText, AiProviderSettings settings);
 
     /**
      * Breaks one task into smaller, concrete subtasks given the surrounding goal context.
      * Validated/repaired like the other calls.
      */
-    java.util.List<PlannedTask> decomposeTask(String taskContext);
+    java.util.List<PlannedTask> decomposeTask(String taskContext, AiProviderSettings settings);
 }

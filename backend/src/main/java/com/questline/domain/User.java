@@ -44,6 +44,16 @@ public class User {
     @Column(name = "xp_total", nullable = false)
     private long xpTotal = 0;
 
+    /** BYOK: the user's own OpenAI-compatible provider. The key is stored encrypted. */
+    @Column(name = "ai_base_url")
+    private String aiBaseUrl;
+
+    @Column(name = "ai_model")
+    private String aiModel;
+
+    @Column(name = "ai_api_key_enc")
+    private String aiApiKeyEnc;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;

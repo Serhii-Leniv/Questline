@@ -57,11 +57,23 @@ public class SpringAiLlmClient implements LlmClient {
             - Keep all human-readable text in the user's language.
             """;
 
+    private static final String PLAN_JSON_SHAPE = """
+            JSON shape: {"summary": string, "milestones": [{"title": string, "description": string, \
+            "tasks": [{"title": string, "description": string, "estimateMinutes": integer-or-null, \
+            "topics": [string]}]}]}""";
+
+    private static final String SUBTASKS_JSON_SHAPE = """
+            JSON shape: {"subtasks": [{"title": string, "description": string, \
+            "estimateMinutes": integer-or-null}]}""";
+
     private final ObjectProvider<ChatClient.Builder> chatClientBuilder;
+    private final OpenAiCompatibleClient openAiCompatible;
     private final PlanRepairLoop repairLoop = new PlanRepairLoop(MAX_PLAN_ATTEMPTS);
 
-    public SpringAiLlmClient(ObjectProvider<ChatClient.Builder> chatClientBuilder) {
+    public SpringAiLlmClient(ObjectProvider<ChatClient.Builder> chatClientBuilder,
+                             OpenAiCompatibleClient openAiCompatible) {
         this.chatClientBuilder = chatClientBuilder;
+        this.openAiCompatible = openAiCompatible;
     }
 
     @Override
@@ -81,34 +93,51 @@ public class SpringAiLlmClient implements LlmClient {
     }
 
     @Override
-    public GeneratedPlan generatePlan(PlanRequest request) {
-        return runStructured(PLAN_SYSTEM_PROMPT, hint -> buildUserPrompt(request, hint));
+    public GeneratedPlan generatePlan(PlanRequest request, AiProviderSettings settings) {
+        UnaryOperator<String> user = hint -> buildUserPrompt(request, hint);
+        if (isByok(settings)) {
+            return openAiCompatible.call(settings, GeneratedPlan.class, PLAN_SYSTEM_PROMPT, user,
+                    PLAN_JSON_SHAPE, "plan", PlanValidator::validate);
+        }
+        return runStructured(requireClient(), PLAN_SYSTEM_PROMPT, user);
     }
 
     @Override
-    public GeneratedPlan parseRoadmap(String roadmapText) {
-        return runStructured(PARSE_SYSTEM_PROMPT, hint -> buildParsePrompt(roadmapText, hint));
+    public GeneratedPlan parseRoadmap(String roadmapText, AiProviderSettings settings) {
+        UnaryOperator<String> user = hint -> buildParsePrompt(roadmapText, hint);
+        if (isByok(settings)) {
+            return openAiCompatible.call(settings, GeneratedPlan.class, PARSE_SYSTEM_PROMPT, user,
+                    PLAN_JSON_SHAPE, "plan", PlanValidator::validate);
+        }
+        return runStructured(requireClient(), PARSE_SYSTEM_PROMPT, user);
     }
 
     @Override
-    public java.util.List<PlannedTask> decomposeTask(String taskContext) {
-        Subtasks result = runEntity(Subtasks.class, DECOMPOSE_SYSTEM_PROMPT,
-                hint -> buildDecomposePrompt(taskContext, hint),
-                "subtasks", PlanValidator::validateSubtasks);
+    public java.util.List<PlannedTask> decomposeTask(String taskContext, AiProviderSettings settings) {
+        UnaryOperator<String> user = hint -> buildDecomposePrompt(taskContext, hint);
+        Subtasks result = isByok(settings)
+                ? openAiCompatible.call(settings, Subtasks.class, DECOMPOSE_SYSTEM_PROMPT, user,
+                        SUBTASKS_JSON_SHAPE, "subtasks", PlanValidator::validateSubtasks)
+                : runEntity(requireClient(), Subtasks.class, DECOMPOSE_SYSTEM_PROMPT, user,
+                        "subtasks", PlanValidator::validateSubtasks);
         return result.subtasks();
     }
 
+    private static boolean isByok(AiProviderSettings settings) {
+        return settings != null && settings.apiKey() != null && !settings.apiKey().isBlank();
+    }
+
     /** Runs one plan-shaped structured-output call through the validate/repair loop. */
-    private GeneratedPlan runStructured(String systemPrompt, UnaryOperator<String> userPromptForHint) {
-        return runEntity(GeneratedPlan.class, systemPrompt, userPromptForHint, "plan",
+    private GeneratedPlan runStructured(ChatClient client, String systemPrompt,
+                                        UnaryOperator<String> userPromptForHint) {
+        return runEntity(client, GeneratedPlan.class, systemPrompt, userPromptForHint, "plan",
                 PlanValidator::validate);
     }
 
     /** Generic: prompt → map to {@code type} → validate, with a repair loop on invalid output. */
-    private <T> T runEntity(Class<T> type, String systemPrompt,
+    private <T> T runEntity(ChatClient client, Class<T> type, String systemPrompt,
                             UnaryOperator<String> userPromptForHint, String noun,
                             PlanRepairLoop.Validator<T> validator) {
-        ChatClient client = requireClient();
         return repairLoop.run(repairHint -> {
             try {
                 T value = client.prompt()

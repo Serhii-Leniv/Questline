@@ -37,6 +37,7 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-secret-change-me-32bytes-minimum}
+      APP_CRYPTO_SECRET: ${APP_CRYPTO_SECRET:-dev-only-insecure-secret-change-me-32bytes-minimum}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
     ports:
       - "8080:8080"

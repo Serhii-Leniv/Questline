@@ -78,6 +78,9 @@ app:
     secret: ${JWT_SECRET:dev-only-insecure-secret-change-me-32bytes-minimum}
     issuer: questline
     ttl: PT24H
+  # Key for encrypting each user's stored BYOK provider API key (AES-GCM). Defaults to the JWT secret.
+  crypto:
+    secret: ${APP_CRYPTO_SECRET:${JWT_SECRET:dev-only-insecure-secret-change-me-32bytes-minimum}}
   # Where to redirect the browser after a successful OAuth2 login (SPA callback).
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
 

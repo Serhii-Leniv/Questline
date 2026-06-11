@@ -1,6 +1,7 @@
 import type {
   Achievement,
   AiJob,
+  AiSettings,
   Goal,
   GoalTree,
   HeatmapEntry,
@@ -74,6 +75,11 @@ export const api = {
   me: () => request<Me>("GET", "/me"),
   updateSettings: (body: { timezone?: string; dailyCapacityMinutes?: number; dailyTaskGoal?: number }) =>
     request<Me>("PATCH", "/me/settings", body),
+
+  aiSettings: () => request<AiSettings>("GET", "/me/ai-settings"),
+  updateAiSettings: (body: { baseUrl: string; model: string; apiKey?: string }) =>
+    request<AiSettings>("PUT", "/me/ai-settings", body),
+  clearAiSettings: () => request<void>("DELETE", "/me/ai-settings"),
 
   overview: () => request<Overview>("GET", "/stats/overview"),
   achievements: () => request<Achievement[]>("GET", "/stats/achievements"),

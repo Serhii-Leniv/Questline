@@ -2,10 +2,13 @@ package com.questline.jobs;
 
 import com.questline.ai.GeneratedPlan;
 import com.questline.ai.LlmClient;
+import com.questline.ai.AiProviderSettings;
 import com.questline.ai.PlanRequest;
 import com.questline.domain.AiJob;
 import com.questline.domain.AiJobStatus;
+import com.questline.domain.AiJobType;
 import com.questline.repository.AiJobRepository;
+import com.questline.service.AiSettingsService;
 import com.questline.service.DecomposeService;
 import java.time.Clock;
 import java.time.Instant;
@@ -31,16 +34,18 @@ public class PlanJobService {
     private final AiJobRepository aiJobRepository;
     private final LlmClient llmClient;
     private final DecomposeService decomposeService;
+    private final AiSettingsService aiSettingsService;
     private final ObjectMapper objectMapper;
     private final TransactionTemplate tx;
     private final Clock clock;
 
     public PlanJobService(AiJobRepository aiJobRepository, LlmClient llmClient,
-                          DecomposeService decomposeService, ObjectMapper objectMapper,
-                          PlatformTransactionManager txManager, Clock clock) {
+                          DecomposeService decomposeService, AiSettingsService aiSettingsService,
+                          ObjectMapper objectMapper, PlatformTransactionManager txManager, Clock clock) {
         this.aiJobRepository = aiJobRepository;
         this.llmClient = llmClient;
         this.decomposeService = decomposeService;
+        this.aiSettingsService = aiSettingsService;
         this.objectMapper = objectMapper;
         this.tx = new TransactionTemplate(txManager);
         this.clock = clock;
@@ -53,18 +58,21 @@ public class PlanJobService {
             return; // already succeeded, or nothing to do
         }
         try {
+            AiProviderSettings settings = started.settings();
             switch (started.type()) {
                 case GENERATE_PLAN -> {
                     GeneratedPlan plan = llmClient.generatePlan(
-                            objectMapper.convertValue(started.input(), PlanRequest.class));
+                            objectMapper.convertValue(started.input(), PlanRequest.class), settings);
                     tx.executeWithoutResult(status -> markSucceeded(jobId, plan));
                 }
                 case PARSE_ROADMAP -> {
-                    GeneratedPlan plan = llmClient.parseRoadmap((String) started.input().get("text"));
+                    GeneratedPlan plan = llmClient.parseRoadmap(
+                            (String) started.input().get("text"), settings);
                     tx.executeWithoutResult(status -> markSucceeded(jobId, plan));
                 }
                 case DECOMPOSE_TASK -> {
-                    var subtasks = llmClient.decomposeTask((String) started.input().get("context"));
+                    var subtasks = llmClient.decomposeTask(
+                            (String) started.input().get("context"), settings);
                     // DecomposeService persists the subtasks and marks the job SUCCEEDED itself.
                     decomposeService.completeDecompose(jobId, subtasks);
                 }
@@ -76,7 +84,7 @@ public class PlanJobService {
         }
     }
 
-    /** Marks the job RUNNING and returns its type+input, or null if it should be skipped. */
+    /** Marks the job RUNNING and returns its type/input/per-user settings, or null to skip. */
     private Started startRun(java.util.UUID jobId) {
         AiJob job = aiJobRepository.findById(jobId).orElseThrow();
         if (job.getStatus() == AiJobStatus.SUCCEEDED) {
@@ -85,10 +93,11 @@ public class PlanJobService {
         job.setStatus(AiJobStatus.RUNNING);
         job.setAttempts(job.getAttempts() + 1);
         job.setError(null);
-        return new Started(job.getType(), job.getInput());
+        AiProviderSettings settings = aiSettingsService.resolve(job.getUser().getId());
+        return new Started(job.getType(), job.getInput(), settings);
     }
 
-    private record Started(com.questline.domain.AiJobType type, Map<String, Object> input) {
+    private record Started(AiJobType type, Map<String, Object> input, AiProviderSettings settings) {
     }
 
     private void markSucceeded(java.util.UUID jobId, GeneratedPlan plan) {
