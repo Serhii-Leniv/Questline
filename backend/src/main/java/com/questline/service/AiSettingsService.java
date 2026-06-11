@@ -1,8 +1,8 @@
 package com.questline.service;
 
 import com.questline.ai.AiProviderSettings;
+import com.questline.common.FieldCipher;
 import com.questline.common.NotFoundException;
-import com.questline.common.SecretCipher;
 import com.questline.domain.User;
 import com.questline.repository.UserRepository;
 import java.util.UUID;
@@ -18,9 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class AiSettingsService {
 
     private final UserRepository userRepository;
-    private final SecretCipher cipher;
+    private final FieldCipher cipher;
 
-    public AiSettingsService(UserRepository userRepository, SecretCipher cipher) {
+    public AiSettingsService(UserRepository userRepository, FieldCipher cipher) {
         this.userRepository = userRepository;
         this.cipher = cipher;
     }

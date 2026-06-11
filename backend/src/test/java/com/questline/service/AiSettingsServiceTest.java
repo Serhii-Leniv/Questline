@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 import com.questline.ai.AiProviderSettings;
-import com.questline.common.SecretCipher;
+import com.questline.common.FieldCipher;
 import com.questline.domain.User;
 import com.questline.repository.UserRepository;
 import java.util.Optional;
@@ -23,7 +23,7 @@ class AiSettingsServiceTest {
     @Mock
     UserRepository userRepository;
 
-    private final SecretCipher cipher = new SecretCipher("a-test-crypto-secret-32-bytes-minimum");
+    private final FieldCipher cipher = new FieldCipher("a-test-crypto-secret-32-bytes-minimum");
     private AiSettingsService service;
 
     @BeforeEach
