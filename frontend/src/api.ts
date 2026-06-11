@@ -3,6 +3,7 @@ import type {
   AiJob,
   Goal,
   GoalTree,
+  HeatmapEntry,
   Me,
   Overview,
   PlanJob,
@@ -77,6 +78,8 @@ export const api = {
   overview: () => request<Overview>("GET", "/stats/overview"),
   achievements: () => request<Achievement[]>("GET", "/stats/achievements"),
   topics: () => request<TopicProgress[]>("GET", "/stats/topics"),
+  heatmap: (from: string, to: string) =>
+    request<HeatmapEntry[]>("GET", `/stats/heatmap?from=${from}&to=${to}`),
 
   listGoals: (status?: string) =>
     request<Goal[]>("GET", `/goals${status ? `?status=${status}` : ""}`),

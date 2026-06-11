@@ -46,6 +46,11 @@ export interface TopicProgress {
   done: number;
 }
 
+export interface HeatmapEntry {
+  date: string;
+  count: number;
+}
+
 export interface Goal {
   id: string;
   title: string;

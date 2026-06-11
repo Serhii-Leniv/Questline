@@ -5,9 +5,10 @@ import { Login } from "./views/Login";
 import { TodayView } from "./views/TodayView";
 import { WeekView } from "./views/WeekView";
 import { GoalsView } from "./views/GoalsView";
+import { StatsView } from "./views/StatsView";
 import { SettingsView } from "./views/SettingsView";
 
-type Tab = "today" | "week" | "goals" | "settings";
+type Tab = "today" | "week" | "goals" | "stats" | "settings";
 
 /** On the OAuth callback route, pull the JWT out of the URL fragment and store it. */
 function captureCallbackToken(): void {
@@ -54,12 +55,14 @@ export function App() {
         <button aria-current={tab === "today"} onClick={() => setTab("today")}>Today</button>
         <button aria-current={tab === "week"} onClick={() => setTab("week")}>Week</button>
         <button aria-current={tab === "goals"} onClick={() => setTab("goals")}>Goals</button>
+        <button aria-current={tab === "stats"} onClick={() => setTab("stats")}>Stats</button>
         <button aria-current={tab === "settings"} onClick={() => setTab("settings")}>Settings</button>
       </nav>
 
       {tab === "today" && <TodayView onChanged={refreshStats} />}
       {tab === "week" && <WeekView onChanged={refreshStats} />}
       {tab === "goals" && <GoalsView onChanged={refreshStats} />}
+      {tab === "stats" && <StatsView />}
       {tab === "settings" && <SettingsView />}
     </div>
   );
