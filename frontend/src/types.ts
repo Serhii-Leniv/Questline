@@ -57,6 +57,14 @@ export interface AiSettings {
   model: string | null;
 }
 
+export interface TemplateSummary {
+  id: string;
+  title: string;
+  summary: string | null;
+  taskCount: number;
+  createdAt: string;
+}
+
 export interface Goal {
   id: string;
   title: string;

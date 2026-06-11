@@ -4,8 +4,9 @@ import type { Goal } from "../types";
 import { GoalDetail } from "./GoalDetail";
 import { PlanGenerator } from "./PlanGenerator";
 import { RoadmapImporter } from "./RoadmapImporter";
+import { TemplatesBrowser } from "./TemplatesBrowser";
 
-type Mode = "ai" | "import";
+type Mode = "ai" | "import" | "templates";
 
 export function GoalsView({ onChanged }: { onChanged: () => void }) {
   const [goals, setGoals] = useState<Goal[] | null>(null);
@@ -37,8 +38,9 @@ export function GoalsView({ onChanged }: { onChanged: () => void }) {
     return (
       <div>
         <button onClick={() => setMode(null)} style={{ marginBottom: "0.75rem" }}>← Goals</button>
-        {mode === "ai" ? <PlanGenerator onAccepted={onAccepted} />
-          : <RoadmapImporter onAccepted={onAccepted} />}
+        {mode === "ai" && <PlanGenerator onAccepted={onAccepted} />}
+        {mode === "import" && <RoadmapImporter onAccepted={onAccepted} />}
+        {mode === "templates" && <TemplatesBrowser onImported={onAccepted} />}
       </div>
     );
   }
@@ -48,6 +50,7 @@ export function GoalsView({ onChanged }: { onChanged: () => void }) {
       <div className="row" style={{ marginBottom: "1rem" }}>
         <h2 style={{ margin: 0 }}>Your goals</h2>
         <span style={{ display: "flex", gap: "0.5rem" }}>
+          <button onClick={() => setMode("templates")}>Templates</button>
           <button onClick={() => setMode("import")}>Import roadmap</button>
           <button className="primary" onClick={() => setMode("ai")}>New goal with AI</button>
         </span>

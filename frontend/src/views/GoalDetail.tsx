@@ -18,6 +18,7 @@ export function GoalDetail(
   const [error, setError] = useState<string | null>(null);
   const [decomposing, setDecomposing] = useState<string | null>(null);
   const [replanJob, setReplanJob] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setError(null);
@@ -89,6 +90,17 @@ export function GoalDetail(
     }
   };
 
+  const publish = async () => {
+    setError(null);
+    setNotice(null);
+    try {
+      await api.publishGoal(goalId);
+      setNotice("Published as a public template.");
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : String(e));
+    }
+  };
+
   const renderTask = (task: TaskNode, depth: number) => {
     const done = task.status === "DONE";
     return (
@@ -140,8 +152,10 @@ export function GoalDetail(
         <button onClick={onBack}>← Goals</button>
         <span className="spacer" />
         <span className="tag">{Math.round(tree.progress * 100)}% done</span>
+        <button onClick={publish}>Publish</button>
         <button onClick={replan}>Replan</button>
       </div>
+      {notice && <p className="muted">{notice}</p>}
       <div className="panel">
         <h2>{tree.title}</h2>
         {tree.target && <p className="muted">{tree.target}</p>}

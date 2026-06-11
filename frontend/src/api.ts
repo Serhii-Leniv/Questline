@@ -9,6 +9,7 @@ import type {
   Overview,
   PlanJob,
   Task,
+  TemplateSummary,
   TopicProgress,
 } from "./types";
 
@@ -93,6 +94,9 @@ export const api = {
   createGoal: (body: { title: string; description?: string; context?: string; target?: string }) =>
     request<Goal>("POST", "/goals", body),
   archiveGoal: (id: string) => request<Goal>("POST", `/goals/${id}/archive`),
+  publishGoal: (id: string) => request<TemplateSummary>("POST", `/goals/${id}/publish`),
+  templates: () => request<TemplateSummary[]>("GET", "/templates"),
+  importTemplate: (id: string) => request<GoalTree>("POST", `/templates/${id}/import`),
 
   today: () => request<Task[]>("GET", "/tasks/today"),
   week: (start?: string) => request<Task[]>("GET", `/tasks/week${start ? `?start=${start}` : ""}`),

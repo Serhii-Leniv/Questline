@@ -50,13 +50,13 @@ public class AiPlanService {
     private final ObjectMapper objectMapper;
     private final AiRateLimiter rateLimiter;
     private final AiMessageRepository aiMessageRepository;
-    private final TopicService topicService;
+    private final PlanPersister planPersister;
 
     public AiPlanService(GoalRepository goalRepository, AiJobRepository aiJobRepository,
                          UserRepository userRepository, TaskRepository taskRepository,
                          PlanJobService planJobService, JobScheduler jobScheduler,
                          ObjectMapper objectMapper, AiRateLimiter rateLimiter,
-                         AiMessageRepository aiMessageRepository, TopicService topicService) {
+                         AiMessageRepository aiMessageRepository, PlanPersister planPersister) {
         this.goalRepository = goalRepository;
         this.aiJobRepository = aiJobRepository;
         this.userRepository = userRepository;
@@ -66,7 +66,7 @@ public class AiPlanService {
         this.objectMapper = objectMapper;
         this.rateLimiter = rateLimiter;
         this.aiMessageRepository = aiMessageRepository;
-        this.topicService = topicService;
+        this.planPersister = planPersister;
     }
 
     /** Creates a draft goal + a PENDING job and enqueues generation. Returns the job. */
@@ -245,7 +245,7 @@ public class AiPlanService {
         goal.getMilestones().removeIf(milestone -> milestone.getStatus() != MilestoneStatus.DONE);
 
         GeneratedPlan plan = objectMapper.convertValue(job.getOutput(), GeneratedPlan.class);
-        persistTree(userId, goal, plan);
+        planPersister.persist(userId, goal, plan);
         // Kept milestones load their tasks lazily; initialize the tree for the response mapping.
         goal.getMilestones().forEach(milestone -> milestone.getTasks().forEach(AiPlanService::initSubtasks));
         return goal;
@@ -295,35 +295,8 @@ public class AiPlanService {
                         "There is no generated plan to accept for this goal"));
 
         GeneratedPlan plan = objectMapper.convertValue(job.getOutput(), GeneratedPlan.class);
-        persistTree(userId, goal, plan);
+        planPersister.persist(userId, goal, plan);
         return goal;
-    }
-
-    private void persistTree(UUID userId, Goal goal, GeneratedPlan plan) {
-        int milestoneIndex = goal.getMilestones().size(); // append after any kept milestones
-        for (PlannedMilestone plannedMilestone : plan.milestones()) {
-            Milestone milestone = new Milestone();
-            milestone.setGoal(goal);
-            milestone.setTitle(plannedMilestone.title());
-            milestone.setDescription(plannedMilestone.description());
-            milestone.setOrderIndex(milestoneIndex++);
-
-            int taskIndex = 0;
-            for (PlannedTask plannedTask : plannedMilestone.tasks()) {
-                Task task = new Task();
-                task.setUser(goal.getUser());
-                task.setGoal(goal);
-                task.setMilestone(milestone);
-                task.setTitle(plannedTask.title());
-                task.setDescription(plannedTask.description());
-                task.setEstimateMinutes(plannedTask.estimateMinutes());
-                task.setTopics(topicService.findOrCreate(userId, plannedTask.topics()));
-                task.setOrderIndex(taskIndex++);
-                milestone.getTasks().add(task);
-            }
-            goal.getMilestones().add(milestone);
-        }
-        // Goal.milestones (cascade ALL) and Milestone.tasks (cascade ALL) persist the whole tree.
     }
 
     @SuppressWarnings("unchecked")
