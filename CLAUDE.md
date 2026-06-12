@@ -13,9 +13,10 @@ the AI engine (generate / refine / parse / decompose / replan as JobRunr jobs wi
 gamification (streaks + freezes, XP/levels, achievements, heatmap, topics), planning (plan-my-day +
 week view), per-user **BYOK** AI provider (encrypted key, direct OpenAI-compatible `RestClient` path
 in `ai/OpenAiCompatibleClient`; server default still via Spring AI), roadmap sharing (templates),
-account export/deletion, and the React SPA (Today/Week/Goals/Stats/Settings). Migrations run to
-`V9`. **Not done:** Postgres RLS, open registration + billing, AI token accounting. Check what
-exists before assuming — most of SPEC §7–13 is now real.
+account export/deletion, Postgres RLS (per-tx `app.user_id` GUC via `RlsTransactionManager` +
+pass-through policies in `V10`), and the React SPA (Today/Week/Goals/Stats/Settings). Migrations
+run to `V10`. **Not done:** open registration + billing, AI token accounting. Check what exists
+before assuming — most of SPEC §7–13 is now real.
 
 ## Stack
 Java 21, Spring Boot 4.0, Spring Web (REST), Spring Data JPA + Flyway, PostgreSQL,
