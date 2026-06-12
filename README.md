@@ -3,8 +3,22 @@
 AI-powered goal decomposition + streak tracker. Formulate (or import) a big goal → an AI engine
 decomposes it into a tree of daily tasks → close a few each day and keep your streak.
 
-This repository is at **Phase 0 (skeleton)**. See [SPEC.md](SPEC.md) for the full spec and
-[CLAUDE.md](CLAUDE.md) for conventions.
+See [SPEC.md](SPEC.md) for the full spec and [CLAUDE.md](CLAUDE.md) for conventions.
+
+## Features
+
+- **AI plan engine** — generate a roadmap from a goal, refine it in chat, import a pasted roadmap,
+  decompose any task into subtasks, and replan the remaining work to fit a deadline. Every LLM call
+  runs as a durable JobRunr job with output validation + a repair loop.
+- **Bring your own AI provider** — use the server default (Google Gemini) or plug in your own
+  OpenAI-compatible key per user (OpenRouter, OpenAI, Groq, or a local model via Ollama / LM Studio).
+  Per-user keys are encrypted at rest.
+- **Daily loop & gamification** — Today / Week views, "plan my day" within your capacity, streaks
+  with freezes, XP & levels, achievements, a GitHub-style activity heatmap, and topic tracking — all
+  computed in the user's timezone.
+- **Goals** — tree of milestones → tasks (→ subtasks), progress roll-up, drag-free scheduling.
+- **Sharing** — publish a goal as a public template; browse and import others' templates.
+- **Account** — Google sign-in, settings, data export (JSON), and account deletion.
 
 ## Stack
 
@@ -44,14 +58,15 @@ cp .env.example .env
 Fill in `.env`:
 
 - `GEMINI_API_KEY` — free key from [Google AI Studio](https://aistudio.google.com/apikey)
-  (NOT Vertex AI). Model defaults to `gemini-2.5-flash`.
+  (NOT Vertex AI). Model defaults to `gemini-2.5-flash`. This is the server default provider;
+  users can also bring their own OpenAI-compatible key in the app (`AI_PROVIDER` / `OPENAI_*` switch
+  the server default — see `.env.example`).
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — Google Cloud Console → Credentials → OAuth client.
   Authorized redirect URI: `http://localhost:8080/login/oauth2/code/google`.
 - `JWT_SECRET` — any random string ≥ 32 bytes.
 - `POSTGRES_*` / `DB_*` — local database credentials.
 
-> `.env` is git-ignored — never commit it. AI features are inactive in Phase 0, but the key is
-> wired so the provider bean is configured.
+> `.env` is git-ignored — never commit it.
 
 ## 2. Start Postgres
 
@@ -100,8 +115,8 @@ npm install
 npm run dev
 ```
 
-Open <http://localhost:5173> — the page calls `/api/ping` (proxied to the backend) and shows the
-result.
+Open <http://localhost:5173> — the SPA (Today / Week / Goals / Stats / Settings) proxies `/api`
+and the OAuth routes to the backend. Sign in with Google to start.
 
 ## 5. Build & test
 

@@ -8,11 +8,14 @@ Questline is an AI-powered goal decomposition + streak tracker. Full spec: [SPEC
 Build **phase by phase** per SPEC §13 — never "do it all at once".
 
 ## Current state
-Phase 0 (skeleton) is complete: OAuth2 login + self-issued JWT (`/api/me`), `GET /api/ping`,
-JobRunr storage wired, the `ai/` seam (`LlmClient`), Flyway `V1__init.sql`, Testcontainers IT,
-CI, and the Vite/React scaffold. Most `service/`, `web/`, `jobs/`, and `ai/` planning code from
-SPEC §7–10 is **not built yet** — check what exists before assuming a class is there. The `jobs/`
-package is currently just a `package-info.java` placeholder.
+Phase 1 + Phase 2 are complete, and much of Phase 3. Built and on `main` (CI green): goal/task CRUD,
+the AI engine (generate / refine / parse / decompose / replan as JobRunr jobs with validate+repair),
+gamification (streaks + freezes, XP/levels, achievements, heatmap, topics), planning (plan-my-day +
+week view), per-user **BYOK** AI provider (encrypted key, direct OpenAI-compatible `RestClient` path
+in `ai/OpenAiCompatibleClient`; server default still via Spring AI), roadmap sharing (templates),
+account export/deletion, and the React SPA (Today/Week/Goals/Stats/Settings). Migrations run to
+`V9`. **Not done:** Postgres RLS, open registration + billing, AI token accounting. Check what
+exists before assuming — most of SPEC §7–13 is now real.
 
 ## Stack
 Java 21, Spring Boot 4.0, Spring Web (REST), Spring Data JPA + Flyway, PostgreSQL,
