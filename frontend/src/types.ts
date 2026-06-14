@@ -14,6 +14,12 @@ export interface Me {
   dailyCapacityMinutes: number;
   dailyTaskGoal: number;
   xpTotal: number;
+  plan: string;
+}
+
+export interface Plan {
+  plan: string;
+  aiDailyLimit: number;
 }
 
 export interface Overview {

@@ -2,6 +2,8 @@ package com.questline.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -43,6 +45,10 @@ public class User {
 
     @Column(name = "xp_total", nullable = false)
     private long xpTotal = 0;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private PlanType plan = PlanType.FREE;
 
     /** BYOK: the user's own OpenAI-compatible provider. The key is stored encrypted. */
     @Column(name = "ai_base_url")

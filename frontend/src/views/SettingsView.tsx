@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { api, ApiError, logout } from "../api";
-import type { AiSettings, Me } from "../types";
+import type { AiSettings, Me, Plan } from "../types";
 
 export function SettingsView() {
   const [me, setMe] = useState<Me | null>(null);
+  const [plan, setPlan] = useState<Plan | null>(null);
   const [timezone, setTimezone] = useState("");
   const [dailyTaskGoal, setDailyTaskGoal] = useState(1);
   const [dailyCapacityMinutes, setDailyCapacityMinutes] = useState(120);
@@ -26,7 +27,17 @@ export function SettingsView() {
       setDailyCapacityMinutes(m.dailyCapacityMinutes);
     }).catch((e: unknown) => setError(e instanceof ApiError ? e.message : String(e)));
     loadAi();
+    api.plan().then(setPlan).catch(() => setPlan(null));
   }, []);
+
+  const changePlan = async (to: "pro" | "free") => {
+    setError(null);
+    try {
+      setPlan(to === "pro" ? await api.upgradePlan() : await api.downgradePlan());
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : String(e));
+    }
+  };
 
   const loadAi = () => {
     api.aiSettings().then((s) => {
@@ -130,6 +141,24 @@ export function SettingsView() {
         {status && <p className="muted">{status}</p>}
         {error && <p className="error">{error}</p>}
       </div>
+
+      {plan && (
+        <div className="panel">
+          <h3 style={{ marginTop: 0 }}>Plan</h3>
+          <p className="muted">
+            You're on <strong>{plan.plan}</strong> — up to <strong>{plan.aiDailyLimit}</strong> AI
+            requests per day.
+          </p>
+          <div className="row">
+            {plan.plan === "FREE"
+              ? <button className="primary" onClick={() => changePlan("pro")}>Upgrade to PRO</button>
+              : <button onClick={() => changePlan("free")}>Downgrade to FREE</button>}
+          </div>
+          <p className="muted" style={{ marginTop: "0.4rem", fontSize: "0.8rem" }}>
+            Billing is a stub here (no real payment); a Stripe integration would replace it.
+          </p>
+        </div>
+      )}
 
       <div className="panel">
         <h3 style={{ marginTop: 0 }}>AI provider (bring your own key)</h3>

@@ -7,6 +7,7 @@ import type {
   HeatmapEntry,
   Me,
   Overview,
+  Plan,
   PlanJob,
   Task,
   TemplateSummary,
@@ -83,6 +84,10 @@ export const api = {
   clearAiSettings: () => request<void>("DELETE", "/me/ai-settings"),
   exportData: () => request<unknown>("GET", "/me/export"),
   deleteAccount: () => request<void>("DELETE", "/me"),
+
+  plan: () => request<Plan>("GET", "/me/plan"),
+  upgradePlan: () => request<Plan>("POST", "/me/plan/upgrade"),
+  downgradePlan: () => request<Plan>("POST", "/me/plan/downgrade"),
 
   overview: () => request<Overview>("GET", "/stats/overview"),
   achievements: () => request<Achievement[]>("GET", "/stats/achievements"),

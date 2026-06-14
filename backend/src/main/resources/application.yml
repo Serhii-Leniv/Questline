@@ -83,6 +83,10 @@ app:
     secret: ${APP_CRYPTO_SECRET:${JWT_SECRET:dev-only-insecure-secret-change-me-32bytes-minimum}}
   # Where to redirect the browser after a successful OAuth2 login (SPA callback).
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
+  # Per-plan AI request limits (rolling 24h, per user).
+  plan:
+    free-ai-daily-limit: ${PLAN_FREE_AI_LIMIT:10}
+    pro-ai-daily-limit: ${PLAN_PRO_AI_LIMIT:200}
 
 management:
   endpoints:

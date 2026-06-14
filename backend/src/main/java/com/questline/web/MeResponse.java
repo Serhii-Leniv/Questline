@@ -11,7 +11,8 @@ public record MeResponse(
         String timezone,
         int dailyCapacityMinutes,
         int dailyTaskGoal,
-        long xpTotal
+        long xpTotal,
+        String plan
 ) {
 
     public static MeResponse from(User user) {
@@ -23,6 +24,7 @@ public record MeResponse(
                 user.getTimezone(),
                 user.getDailyCapacityMinutes(),
                 user.getDailyTaskGoal(),
-                user.getXpTotal());
+                user.getXpTotal(),
+                user.getPlan().name());
     }
 }
